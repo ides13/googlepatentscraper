@@ -19,14 +19,17 @@ class Document():
         Raises:
             InvalidUrl: If hostname is not set
         """
+        
         self.data = {}
-        url = f"https://patents.google.com/patent/{number}/en"
+        url = f"https://patents.google.com/patent/{number}"
+        self.url = url
+        
         response = requests.get(url)
         if response.ok:
-            self.data = self.__process(response.content)
+            self.data = self.__process(response.content.decode('utf-8'))
             if download == True:
-                status = self.__get_pdf()
-            print(status)
+                status = self.__get_pdf(number)
+            print('下載專利狀態', status)
         else:
             raise Exception("Something went wrong getting the document")
 
@@ -265,10 +268,23 @@ class Document():
         try:
             session = HTMLSession()
             s = session.get(self.url)
-            for link in s.html.links:
-                if ".pdf" in link:
-                    patent_url = link
-                break
+            # for link in s.html.links:
+            #     if ".pdf" in link:
+            #         patent_url = link
+            #         print('下載連結', patent_url)
+            #     break
+        
+            #############################################################3
+            html = s.html
+            pdf_link_tag = html.find('a[itemprop="pdfLink"]', first=True)
+            
+            if pdf_link_tag and 'href' in pdf_link_tag.attrs:
+                patent_url = pdf_link_tag.attrs['href']
+                print('PDF 連結:', patent_url)
+            else:
+                print('找不到 PDF 連結')            
+            #############################################################3
+            
             s = requests.get(patent_url, allow_redirects=True)
             open(f'{filename}.pdf', 'wb').write(s.content)
             output = str(f'{filename}.pdf downloaded')
